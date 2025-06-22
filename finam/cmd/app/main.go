@@ -3,63 +3,85 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 
+	"finam/config"
 	grpcRepo "finam/repository/grpc"
+	"finam/repository/http"
+	redisRepo "finam/repository/redis"
 	"finam/service"
 )
 
 const (
-	EndPoint = ""
+	FinamEndPoint = "api.finam.ru:443"
+	TGEndPoint    = "api.telegram.org"
 )
 
-func init() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("No .env found")
-	}
-}
+// func init() {
+// 	if err := godotenv.Load(); err != nil {
+// 		log.Fatal("No .env found")
+// 	}
+// }
 
 func main() {
+	fl := config.ParseFlags()
+	var cfg config.Config
+
+	config.MustLoad(fl.ConfigPath, &cfg)
 	tlsConfig := tls.Config{MinVersion: tls.VersionTLS12}
-	conn, err := grpc.NewClient("api.finam.ru:443", grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
+	conn, err := grpc.NewClient(FinamEndPoint, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
 	if err != nil {
 		panic(err)
 	}
 	secret, exists := os.LookupEnv("SECRET")
 	if !exists {
-		log.Fatal("secret not found")
+		log.Fatal("SECRET not found")
 	}
 	ctx := context.Background()
 
 	authRepo := grpcRepo.NewAuth(conn)
 	authService := service.NewAuth(authRepo)
-	jwt, err := authService.GetToken(context.TODO(), secret)
-	if err != nil {
-		log.Fatal("couldn't get token")
-	}
-
-	md := metadata.New(map[string]string{
-		"Authorization": jwt,
-	})
-	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	accountID, exists := os.LookupEnv("ACCOUNT_ID")
 	if !exists {
-		log.Fatal("account_id not found")
+		log.Fatal("ACCOUNT_ID not found")
 	}
 
 	accountRepo := grpcRepo.NewAccount(conn, accountID)
-	accountService := service.NewAccount(accountRepo)
-	equity, err := accountService.GetEquity(ctx)
-	if err != nil {
-		log.Fatalf("can't get equity: %v", err)
+	accountService := service.NewAccount(accountRepo, authService)
+
+	tgToken, exists := os.LookupEnv("TG_TOKEN")
+	if !exists {
+		log.Fatal("TG_TOKEN not found")
 	}
-	fmt.Println(equity)
+
+	tgUser, exists := os.LookupEnv("TG_USER")
+	if !exists {
+		log.Fatal("TG_USER not found")
+	}
+	tgUserID, err := strconv.Atoi(tgUser)
+	if err != nil {
+		log.Fatal("tg user must be int")
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.Redis.Addr,
+		DB:   cfg.Redis.DB,
+	})
+
+	cacheRepo := redisRepo.NewCache(rdb)
+
+	tgRepo := http.NewTG(TGEndPoint, tgToken)
+	tgService := service.NewTg(tgUserID, tgRepo, cacheRepo, accountService, authService, secret, cfg.Notification.StartHour, cfg.Notification.StartMinute, time.Duration(cfg.Notification.NSInterval))
+	err = tgService.Start(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

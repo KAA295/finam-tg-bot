@@ -1,0 +1,15 @@
+services:
+    service:
+      build:
+        dockerfile: cmd/app/Dockerfile
+        context: ./
+      ports:
+        - 8000:8000
+      env_file:
+        - ./cmd/app/.env
+      working_dir: /app
+    redis:
+      image: redis:6-alpine
+      container_name: finam_redis
+      ports:
+        - "6379:6379"

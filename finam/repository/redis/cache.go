@@ -2,7 +2,6 @@ package redis
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -27,6 +26,21 @@ func (c *Cache) GetLatest(ctx context.Context) (string, error) {
 	if len(vals) < 1 {
 		return "", redis.Nil
 	}
-	fmt.Println(len(vals))
 	return vals[0], nil
+}
+
+func (c *Cache) GetNLatest(ctx context.Context, n int) ([]string, error) {
+	ln, err := c.rdb.LLen(ctx, "balance_list").Result()
+	if err != nil {
+		return []string{}, err
+	}
+	if ln >= int64(n) {
+		vals, err := c.rdb.LRange(ctx, "balance_list", int64(-n), -1).Result()
+		return vals, err
+	}
+	if ln == 0 {
+		return []string{}, redis.Nil
+	}
+	vals, err := c.rdb.LRange(ctx, "balance_list", -ln, -1).Result()
+	return vals, err
 }

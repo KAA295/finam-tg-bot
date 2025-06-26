@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Redis        RedisConfig        `yaml:"redis"`
 	Notification NotificationConfig `yaml:"notification"`
+	Chart        ChartConfig        `yaml:"chart"`
 }
 
 type RedisConfig struct {
@@ -22,6 +23,10 @@ type NotificationConfig struct {
 	StartHour   int   `yaml:"start_hour"`
 	StartMinute int   `yaml:"start_minute"`
 	NSInterval  int64 `yaml:"interval"`
+}
+
+type ChartConfig struct {
+	NLatest int `yaml:"n_latest"`
 }
 
 type Flags struct {

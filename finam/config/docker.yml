@@ -2,6 +2,8 @@ redis:
   addr: "finam_redis:6379"
   db: 0
 notification:
-  start_hour: 15
-  start_minute: 00
-  interval: 3600000000000 
+  start_hour: 14
+  start_minute: 10
+  interval: 3600000000000
+chart:
+  n_latest: 50

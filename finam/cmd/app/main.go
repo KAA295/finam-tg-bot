@@ -31,12 +31,23 @@ const (
 // }
 
 func main() {
+	serviceConfig := `{
+        "methodConfig": [{
+            "retryPolicy": {
+                "maxAttempts": 4,
+                "initialBackoff": "0.1s",
+                "maxBackoff": "5s",
+                "backoffMultiplier": 2,
+                "retryableStatusCodes": ["UNAVAILABLE"]
+            }
+        }]
+    }`
 	fl := config.ParseFlags()
 	var cfg config.Config
 
 	config.MustLoad(fl.ConfigPath, &cfg)
 	tlsConfig := tls.Config{MinVersion: tls.VersionTLS12}
-	conn, err := grpc.NewClient(FinamEndPoint, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
+	conn, err := grpc.NewClient(FinamEndPoint, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)), grpc.WithDefaultServiceConfig(serviceConfig))
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +90,7 @@ func main() {
 	cacheRepo := redisRepo.NewCache(rdb)
 
 	tgRepo := http.NewTG(TGEndPoint, tgToken)
-	tgService := service.NewTg(tgUserID, tgRepo, cacheRepo, accountService, authService, secret, cfg.Notification.StartHour, cfg.Notification.StartMinute, time.Duration(cfg.Notification.NSInterval))
+	tgService := service.NewTg(tgUserID, tgRepo, cacheRepo, accountService, authService, secret, cfg.Notification.StartHour, cfg.Notification.StartMinute, time.Duration(cfg.Notification.NSInterval), cfg.Chart.NLatest)
 	err = tgService.Start(ctx)
 	if err != nil {
 		log.Fatal(err)

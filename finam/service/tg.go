@@ -82,6 +82,7 @@ func (tg *Tg) Start(ctx context.Context) error {
 				continue
 			}
 		}
+		tg.cacheService.Set(ctx, equity)
 
 		intEquity, err := strconv.ParseFloat(equity, 64)
 		if err != nil {
@@ -104,7 +105,6 @@ func (tg *Tg) Start(ctx context.Context) error {
 			tg.handleError(ctx, "SendPhoto", err)
 		}
 
-		tg.cacheService.Set(ctx, equity)
 	}
 }
 

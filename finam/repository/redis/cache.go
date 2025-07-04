@@ -41,6 +41,8 @@ func (c *Cache) GetNLatest(ctx context.Context, n int) ([]string, error) {
 	if ln == 0 {
 		return []string{}, redis.Nil
 	}
+
 	vals, err := c.rdb.LRange(ctx, "balance_list", -ln, -1).Result()
+
 	return vals, err
 }

@@ -4,6 +4,6 @@ redis:
 notification:
   start_hour: 14
   start_minute: 10
-  interval: 120000000000
+  interval: 1800000000000
 chart:
   n_latest: 50

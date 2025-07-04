@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -10,11 +11,13 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 const (
 	sendMessagePath = "sendMessage"
 	sendPhotoPath   = "sendPhoto"
+	retriesCount    = 4
 )
 
 type Tg struct {
@@ -44,7 +47,9 @@ func (t *Tg) SendMessage(chatID int, text string) error {
 
 	req.URL.RawQuery = q.Encode()
 	_, err = http.DefaultClient.Do(req)
-	return err
+
+	t.sendRequest(req)
+	return nil
 }
 
 func (t *Tg) SendPhoto(chatID int, caption string, filename string) error {
@@ -87,6 +92,36 @@ func (t *Tg) SendPhoto(chatID int, caption string, filename string) error {
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	_, err = http.DefaultClient.Do(req)
-	return err
+	t.sendRequest(req)
+
+	return nil
+}
+
+func (t *Tg) sendRequest(req *http.Request) {
+	client := http.Client{
+		Timeout: 100 * time.Second,
+	}
+	bodyBytes, _ := io.ReadAll(req.Body)
+	req.Body.Close()
+	backoff := 2
+	for i := 0; i < retriesCount; i++ {
+		newReq := req.Clone(req.Context())
+
+		newReq.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+		resp, err := client.Do(newReq)
+		if err != nil {
+			log.Printf("[ERR] %s %s request failed: %v", newReq.Method, newReq.URL, err)
+		}
+
+		if resp.StatusCode == 200 {
+			log.Printf("%s %s request; attempt: %s; success", newReq.Method, newReq.URL, i+1, resp.StatusCode)
+			return
+		}
+		log.Printf("%s %s request; attempt: %s; status code: %s;", newReq.Method, newReq.URL, i+1, resp.StatusCode)
+
+		backoff := backoff * backoff
+
+		time.Sleep(time.Duration(backoff) * time.Second)
+	}
 }

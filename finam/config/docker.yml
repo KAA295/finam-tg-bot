@@ -3,7 +3,7 @@ redis:
   db: 0
 notification:
   start_hour: 14
-  start_minute: 10
-  interval: 1800000000000
+  start_minute: 00
+  interval: 3600000000000
 chart:
   n_latest: 50

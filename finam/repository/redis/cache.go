@@ -46,3 +46,5 @@ func (c *Cache) GetNLatest(ctx context.Context, n int) ([]string, error) {
 
 	return vals, err
 }
+
+// func (c *Cache) DeleteExtra(ctx context.Context, maxLen int)

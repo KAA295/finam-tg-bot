@@ -48,6 +48,7 @@ type Tg struct {
 	startMinute    int
 	interval       time.Duration
 	nLatest        int
+	firstRun       time.Time
 }
 
 func NewTg(userID int, tgRepo TgRepo, cacheService CacheService, accountService AccountService, authService AuthService, secret string, startHour int, startMinute int, interval time.Duration, nLatest int) *Tg {
@@ -110,11 +111,12 @@ func (tg *Tg) Start(ctx context.Context) error {
 
 func (tg *Tg) duration() time.Duration {
 	now := time.Now()
-	firstRun := time.Date(now.Year(), now.Month(), now.Day(), tg.startHour, tg.startMinute, 0, 0, now.Location())
-	elapsed := now.Sub(firstRun)
-	next := firstRun.Add(((elapsed / tg.interval) + 1) * tg.interval)
-	fmt.Println(next.Sub(now))
-	fmt.Println(next.Sub(now).Minutes())
+	if tg.firstRun.IsZero() {
+		tg.firstRun = time.Date(now.Year(), now.Month(), now.Day(), tg.startHour, tg.startMinute, 0, 0, now.Location())
+	}
+	elapsed := now.Sub(tg.firstRun)
+	next := tg.firstRun.Add(((elapsed / tg.interval) + 1) * tg.interval)
+	log.Printf("[DEBUG] next call in %v", next.Sub(now))
 	return next.Sub(now)
 }
 
